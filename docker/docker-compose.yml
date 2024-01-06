@@ -14,3 +14,10 @@ services:
     # volumes allows you to mount a directory from the host into the container
     volumes:
       - ./docker/nginx/website:/var/www/html
+
+  api-songs:
+    build:
+      context: api
+      dockerfile: Dockerfile
+    ports:
+      - "7000:7000"
