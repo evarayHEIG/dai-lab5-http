@@ -13,11 +13,11 @@ public class SongController{
 
     public SongController(){
 
-        songs.put(nextId++, new Song("Holiday", "Green Day"));
-        songs.put(nextId++, new Song("Coney Island", "Taylor Swift"));
-        songs.put(nextId++, new Song("Scar Tissue", "Red Hot Chili Peppers"));
-        songs.put(nextId++, new Song("All Too Well", "Taylor Swift"));
-        songs.put(nextId++, new Song("Dis-ease", "BTS"));
+        songs.put(nextId++, new Song("Green Day", "Holiday"));
+        songs.put(nextId++, new Song("Taylor Swift", "Coney Island"));
+        songs.put(nextId++, new Song("Red Hot Chili Peppers", "Scar Tissue"));
+        songs.put(nextId++, new Song("Taylor Swift", "All Too Well"));
+        songs.put(nextId++, new Song("BTS", "Dis-ease"));
     }
 
     public void getOne(Context ctx) {
