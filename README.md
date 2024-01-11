@@ -79,3 +79,7 @@ services:
         - "traefik.http.services.api.loadbalancer.server.port=7000"
 ```
 
+# Step 5
+docker compose up -d --scale <instance_name>=<count>
+
+# Step 6
