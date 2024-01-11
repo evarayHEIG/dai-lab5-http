@@ -9,7 +9,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       # the http port
-      - "80:80"
+      - "8000:80"
       # Traefik dashboard
       - "8080:8080"
 
