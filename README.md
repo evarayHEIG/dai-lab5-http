@@ -30,12 +30,12 @@ or
 
 4. Docker should download all the necessary images and build the containers the first time you run it.
 5. Once the containers are up and running, you can access the :
-    - Static website: http://localhost:8000/ or https://localhost:443
+    - Static website: http://localhost:8000/ or https://localhost
     - Dynamic API: http://localhost:8000/api/songs or https://localhost/api/songs
     - Traefik dashboard: http://localhost:8080/
     - Portainer dashboard: http://localhost:9000/ or https://localhost:9443/
 
-## Step 1 : Static Web site
+## Step 1 - Static Web Site
 
 In this step, we created a dockerfil to start the nginx server. We used the official `nginx:latest` image from
 dockerhub.
@@ -57,7 +57,7 @@ docker run -d -p 8080:80 site-trololo
 
 Le site devrait pouvoir être accédé à l'adresse http://localhost:8080/
 
-## Step 2 : Docker Compose
+## Step 2 - Docker Compose
 
 Once the static website is working, we can create a docker-compose file to run the website and the other containers
 needed for the rest of the project. We created a [docker-compose.yml](docker/docker-compose.yml) file in the docker
@@ -86,7 +86,7 @@ services:
       - ./docker/nginx/website:/var/www/html
 ```
 
-## Step 3 : HTTP API server
+## Step 3 - HTTP API Server
 
 During this phase, we developed the API using the Javalin framework in Java. With Javalin, a server was can be created,
 enabling the different endpoint routes for the API we made. The API is able to handle GET, POST, PUT and DELETE requests.
@@ -130,13 +130,20 @@ services:
       - "7000:7000"
 ```
 
-## Step 4 : Reverse proxy with Traefik
+## Step 4 - Reverse Proxy with Traefik
 
-We used port 8000 because port 80 was not available on our machines.
+The goal of this step is to place a reverse proxy in front of the dynamic and static Web servers such that the reverse 
+proxy receives all connections and relays them to the respective Web server. To do so, we used Traefik as a reverse 
+proxy. We added a new service in the docker-compose file called "reverse-proxy" using the traffic docker image. You 
+can see below the commented code we added to the docker-compose file. The Traefik dashboard is accessible at 
+`http://localhost:8080/`, the static website at `http://localhost:8000/` and the dynamic API at 
+`http://localhost:8000/api/songs`. We had to use the port 8000 of the host because the port 80 was not available on
+our machines. If the port 80 is available, you can replace the line `"8000:80"` by `"80:80"` in the docker-compose file.
 
 ```dockerfile
-services:
+We used port 8000 because port 80 was not available on our machines. 
 
+```dockerfile
   reverse-proxy:
     image: traefik:v2.10
     # Enables the web UI and tells Traefik to listen to docker
@@ -149,6 +156,39 @@ services:
       - "8000:80"
       # Traefik dashboard
       - "8080:8080"
+```
+
+We also had to add some new configuration to the already existing services in the docker-compose file. We added the
+Traefik labels to both the static web and api services. 
+
+In the api service, we added the folowing labels:
+```dockerfile
+    labels:
+        - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+        - "traefik.http.services.api.loadbalancer.server.port=7000"
+```
+The first label defines the routing route for Traefik, here `localhost/api` and the second label specifies that 
+the service `api` should be exposed on port 7000. Trafik will route the incoming requests to this service on port 7000.
+
+In the web service, we added the following labels:
+```dockerfile
+    labels:
+        - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
+        - "traefik.http.services.web.loadbalancer.server.port=80"
+```
+The meaning of the labels is the same as for the api service. The first label defines that the routing route for Traefik
+is `localhost` and the second label specifies that the service `web` should be exposed on port 80.
+
+The Traefik dahsboard can be accessed at `http://localhost:8080/`. The Traefik dashboard is a web UI that 
+provides real-time insights and control over the Traefik proxy's configuration and runtime. It includes features such 
+as health status monitoring, configuration visualization, request metrics, access logs, SSL/TLS certificate information, 
+and the ability to trigger configuration reloads.
+
+# Step 5
+
+docker compose up -d --scale <instance_name>=<count>
+
+```dockerfile
 
   web:
     # When a build subsection is present for a service, Compose ignores the image attribute for the corresponding
@@ -177,10 +217,6 @@ services:
         - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
         - "traefik.http.services.api.loadbalancer.server.port=7000"
 ```
-
-# Step 5
-
-docker compose up -d --scale <instance_name>=<count>
 
 # Step 6
 
