@@ -1,4 +1,4 @@
-// adapt the url
+// adapt the url for http or https
 const urlApi = window.location.origin + "/api/songs"
 let index = 1
 
@@ -7,7 +7,6 @@ function fetchSongs() {
     fetch(urlApi).then(response => {
         // we convert them into json
         response.json().then(data => {
-            console.log(data)
             let song = data[index]
             index = (index + 1) % (Object.values(data).length + 1);
             // create new div
@@ -21,7 +20,8 @@ function fetchSongs() {
             divToInject.appendChild(div)
         })
     })
+    .catch(error => console.error('Error fetching data:', error));
 }
 
-// Call fetchSongs every 5 seconds
+// Call fetchSongs every 4 seconds
 setInterval(fetchSongs, 4000)
