@@ -1,10 +1,49 @@
-# dai-lab5-http
+# Labo5 HTTP Web infrastructure
 
-## Step 1
+## Project description
+The aim of this project, as seen in the [instructions](LABO_INSTRUCTIONS.md) document, is to establish a web infrastructure containing a
+static website, a dynamic HTTP API, and a reverse proxy. To achieve this, we use Java for API implementation,
+employing the `Javalin` framework. The web server was constructed using `nginx`, and for the reverse proxy
+functionality, we opted for `traefik`. The entire infrastructure is deployed seamlessly through the assistance of `docker`
+and  `docker-compose`.Additionally, the capability to add or remove server instances is facilitated by the use
+of `portainer`.
+
+## Instruction to set up the infrastructure
+In order to set up the infrastructure, the following steps must be followed:
+1. Open a terminal and navigate to the root directory of the project.
+2. If you are on Windows, make sure to open Docker Desktop.
+3. Go to the ```docker``` directory and run the command
+   ```shell
+    docker compose up
+   ```
+ or
+   ```shell 
+    docker compose up -d --scale <instance_name>=<count>
+ ```
+4. Docker should download all the necessary images and build the containers the first time you run it.
+5. Once the containers are up and running, you can access the :
+    - Static website: http://localhost:8000/ or https://localhost:443
+    - Dynamic API: http://localhost:8000/api/songs or https://localhost/api/songs
+    - Traefik dashboard: http://localhost:8080/
+    - Portainer dashboard: http://localhost:9000/ or https://localhost:9443/
+
+## Step 1 : Static Web site
+
+In this step, we created a dockerfil to start the nginx server. We used the official `nginx:latest` image from dockerhub.
+We downladed a html template to reproduce the website added the file to the nginx folder. Then we created a Dockerfile and 
+a [nginx.conf](docker/nginx/nginx.conf) file to configure the server listening on port 80 and giving the location files for the website.
+In the [dockerfile](docker/nginx/Dockerfile), we used the `COPY` command to copy the `nginx.conf` file to the container as well as the website files, 
+and finally we tell it to use the port 80.
+When all 
+
+
+```dockerfile
+
 
 ## Step 2
 
 ## Step 3
+
 ```dockerfile
 services:
 
@@ -80,6 +119,7 @@ services:
 ```
 
 # Step 5
+
 docker compose up -d --scale <instance_name>=<count>
 
 # Step 6
