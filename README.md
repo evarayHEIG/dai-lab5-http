@@ -223,3 +223,29 @@ services:
         - "traefik.http.services.api.loadBalancer.sticky.cookie.name=api-cookie"
 
 ```
+
+portnair chez rafou:
+admin
+pourquoicamarchepaschezeva
+
+## Step optional 1
+
+```dockerfile
+portainer:
+    image: portainer/portainer-ce
+    command: -H unix:///var/run/docker.sock # specifying the Docker socket path
+    ports:
+      # port to access portainer web interface with http
+      - "9000:9000"
+      # port to access portainer web interface with https
+      - "9443:9443"
+    volumes:
+        # Mount the Docker socket from the host into the container
+        - /var/run/docker.sock:/var/run/docker.sock
+        - portainer_data:/data
+        # Mount the directory containing SSL/TLS certificates
+        - ./certificate:/certs
+
+volumes:
+  portainer_data:
+```
