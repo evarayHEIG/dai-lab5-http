@@ -25,7 +25,7 @@ In order to set up the infrastructure, the following steps must be followed:
 or
 
    ```shell 
-    docker compose up -d --scale <instance_name>=<count>
+    docker compose up -d --scale <service>=<count>
  ```
 
 4. Docker should download all the necessary images and build the containers the first time you run it.
@@ -90,7 +90,7 @@ services:
 
 During this phase, we developed the API using the Javalin framework in Java. With Javalin, a server was can be created,
 enabling the different endpoint routes for the API we made. The API is able to handle GET, POST, PUT and DELETE requests.
-Our basic API concept gives different songs and there author as a json format and all the songs are stored in a `ConcurrentHashMap`
+Our basic API concept gives different songs and their singer as a json format and all the songs are stored in a `ConcurrentHashMap`
 which are identified by an id (int). The different routes are:
 - GET /api/songs -> returns all the songs
 - GET /api/songs/{id}
@@ -184,41 +184,31 @@ provides real-time insights and control over the Traefik proxy's configuration a
 as health status monitoring, configuration visualization, request metrics, access logs, SSL/TLS certificate information, 
 and the ability to trigger configuration reloads.
 
-# Step 5
+# Step 5 - Scalability and Load Balancing
 
-docker compose up -d --scale <instance_name>=<count>
+The goal of this section is to allow Traefik to dynamically detect several instances of the (dynamic/static) Web 
+servers. To do so, we added the `deploy.replicas` instruction to the web and api services in the docker-compose file to 
+specify how many instances of each service we want to work with.
 
+In the web service, we added the following instruction:
 ```dockerfile
-
-  web:
-    # When a build subsection is present for a service, Compose ignores the image attribute for the corresponding
-    # service, as Compose can build an image from source
-    build:
-      # context specifies where to find the necessary files to build the image
-      context: nginx
-      # dockerfile specifies the name of the Dockerfile that contains the steps to build the image within
-      # the defined context
-      dockerfile: Dockerfile
     deploy:
       replicas: 3
-    labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
-        - "traefik.http.services.web.loadbalancer.server.port=80"
-
-  api:
-    build:
-      context: api
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 3
-    labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-        - "traefik.http.services.api.loadbalancer.server.port=7000"
 ```
+This instruction sets the number of instances of the web service to 3. The same instruction was added to the api service.
 
-# Step 6
+To dynamically scale the number of instances of the web and api servers, we used the following command:
+```shell
+docker compose up -d --scale <service>=<count>
+```
+Where `<service>` is the name of the service and `<count>` is the number of instances we want to scale to. 
+
+To make sure that the load balancing was working, we launched the docker compose infrastructure and we could see that 
+there was indeed three different instances of the web and api services in the Docker Desktop application. We could also
+see that the requests were distributed between the different instances of the web and api services by reading the
+Javalin and Nginx logs.
+
+# Step 6 - Load balancing with Round-Robin and Sticky Sessions
 
 ```dockerfile
 services:
@@ -267,7 +257,7 @@ services:
 
 ```
 
-## Step 7
+## Step 7 - Securing Traefik with HTTPS
 
 generate a self-signed certificate using the command
 
@@ -364,7 +354,7 @@ portnair chez rafou:
 admin
 pourquoicamarchepaschezeva
 
-## Step optional 1
+## Optiional Step 1 - Management UI
 
 ```dockerfile
 portainer:
@@ -385,3 +375,6 @@ portainer:
 volumes:
   portainer_data:
 ```
+
+## Optional Step 2 -  Integration API - static Web site
+
