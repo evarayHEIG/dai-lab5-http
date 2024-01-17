@@ -18,15 +18,15 @@ In order to set up the infrastructure, the following steps must be followed:
 1. Open a terminal and navigate to the root directory of the project.
 2. If you are on Windows, make sure to open Docker Desktop.
 3. Go to the ```docker``` directory and run the command
-   ```shell
-    docker compose up
-   ```
+```shell
+ docker compose up
+```
 
 or
 
-   ```shell 
-    docker compose up -d --scale <service>=<count>
- ```
+```shell 
+ docker compose up -d --scale <service>=<count>
+```
 
 4. Docker should download all the necessary images and build the containers the first time you run it.
 5. Once the containers are up and running, you can access the :
@@ -90,13 +90,14 @@ services:
 
 During this phase, we developed the API using the Javalin framework in Java. With Javalin, a server was can be created,
 enabling the different endpoint routes for the API we made. The API is able to handle GET, POST, PUT and DELETE requests.
-Our basic API concept gives different songs and their singer as a json format and all the songs are stored in a `ConcurrentHashMap`
+Our basic API concept gives different songs and their singer as a json format and all the songs are stored in a `ConcurrentHashMap`.
+The songs and there singer are represented as a class `Song`.
 which are identified by an id (int). The different routes are:
-- GET /api/songs -> returns all the songs
-- GET /api/songs/{id}
-- POST /api/songs
-- PUT /api/songs/{id}
-- DELETE /api/songs/{id}
+- GET /api/songs -> returns all the `Song` contained in the `HashMap`+
+- GET /api/songs/{id} -> returns a `Song` linked to a specific id
+- POST /api/songs -> add a new `Song` to the `HashMap` 
+- PUT /api/songs/{id} -> add a new `Song` or modify a song in the `HashMap`
+- DELETE /api/songs/{id} -> delete a `Song` to the `HashMap`
 
 When all the routes were implemented, we built the project with `maven` and created a [Dockerfile](docker/api/Dockerfile) to build the image of the API. 
 We used the ` eclipse-temurin:17-jdk-focal` image from dockerhub to build the API with docker. 
@@ -144,18 +145,18 @@ our machines. If the port 80 is available, you can replace the line `"8000:80"` 
 We used port 8000 because port 80 was not available on our machines. 
 
 ```dockerfile
-  reverse-proxy:
-    image: traefik:v2.10
-    # Enables the web UI and tells Traefik to listen to docker
-    command: --api.insecure=true --providers.docker --log.level=INFO
-    volumes:
-      # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      # the http port
-      - "8000:80"
-      # Traefik dashboard
-      - "8080:8080"
+reverse-proxy:
+ image: traefik:v2.10
+ # Enables the web UI and tells Traefik to listen to docker
+ command: --api.insecure=true --providers.docker --log.level=INFO
+ volumes:
+   # So that Traefik can listen to the Docker events
+   - /var/run/docker.sock:/var/run/docker.sock
+ ports:
+   # the http port
+   - "8000:80"
+   # Traefik dashboard
+   - "8080:8080"
 ```
 
 We also had to add some new configuration to the already existing services in the docker-compose file. We added the
@@ -163,18 +164,18 @@ Traefik labels to both the static web and api services.
 
 In the api service, we added the folowing labels:
 ```dockerfile
-    labels:
-        - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-        - "traefik.http.services.api.loadbalancer.server.port=7000"
+ labels:
+     - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+     - "traefik.http.services.api.loadbalancer.server.port=7000"
 ```
 The first label defines the routing route for Traefik, here `localhost/api` and the second label specifies that 
 the service `api` should be exposed on port 7000. Trafik will route the incoming requests to this service on port 7000.
 
 In the web service, we added the following labels:
 ```dockerfile
-    labels:
-        - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
-        - "traefik.http.services.web.loadbalancer.server.port=80"
+ labels:
+     - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
+     - "traefik.http.services.web.loadbalancer.server.port=80"
 ```
 The meaning of the labels is the same as for the api service. The first label defines that the routing route for Traefik
 is `localhost` and the second label specifies that the service `web` should be exposed on port 80.
@@ -192,8 +193,8 @@ specify how many instances of each service we want to work with.
 
 In the web service, we added the following instruction:
 ```dockerfile
-    deploy:
-      replicas: 3
+ deploy:
+   replicas: 3
 ```
 This instruction sets the number of instances of the web service to 3. The same instruction was added to the api service.
 
@@ -210,69 +211,58 @@ Javalin and Nginx logs.
 
 # Step 6 - Load balancing with Round-Robin and Sticky Sessions
 
+The goal of this step is to change the configuration such that Traefik uses sticky sessions for the dynamic server 
+instances (the API instances) and round-robin for the static web server. To do so, we added two new labels to the api
+service configuration in the docker-compose file that you can see below.
 ```dockerfile
-services:
-
-  reverse-proxy:
-    image: traefik:v2.10
-    # Enables the web UI and tells Traefik to listen to docker
-    command: --api.insecure=true --providers.docker --log.level=INFO
-    volumes:
-      # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      # the http port
-      - "8000:80"
-      # Traefik dashboard
-      - "8080:8080"
-
-  web:
-    # When a build subsection is present for a service, Compose ignores the image attribute for the corresponding
-    # service, as Compose can build an image from source
-    build:
-      # context specifies where to find the necessary files to build the image
-      context: nginx
-      # dockerfile specifies the name of the Dockerfile that contains the steps to build the image within
-      # the defined context
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 3
-    labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
-        - "traefik.http.services.web.loadbalancer.server.port=80"
-
-  api:
-    build:
-      context: api
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 3
-    labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-        - "traefik.http.services.api.loadbalancer.server.port=7000"
-        - "traefik.http.services.api.loadBalancer.sticky.cookie=true"
-        - "traefik.http.services.api.loadBalancer.sticky.cookie.name=api-cookie"
-
+ labels:
+     - "traefik.http.services.api.loadBalancer.sticky.cookie=true"
+     - "traefik.http.services.api.loadBalancer.sticky.cookie.name=api-cookie"
 ```
+The first label enables sticky sessions for the api service and the second label specifies the name of the cookie that
+will be used to store the session information. Specifying the cookie name is optional, but it makes it easier to identify
+your cookie when you are testing your configuration.
+
+We checked that the round-robin load balancing was working for the static web server by making mulitple requests from a
+browser (Firefox) and checking the logs. We could see that the response was sent by different instances of the web server, 
+as you can see in the screenshot below.
+
+![Round Robin](figures/load_balancing_website.png)
+
+We checked that the sticky sessions were working for the api service by making multiple requests from `Insomnia` by 
+verifying that the cookie was the same for all the requests. It was indeed the case, as you can see in the screenshots
+below (the cookie value is hashed but you can see that it is the same).
+
+### Cookie for the first request
+
+![Cookie_1](figures/first_cookie.png)
+
+### Cookie for the susequent request
+
+![Cookie_2](figures/second_cookie.png)
 
 ## Step 7 - Securing Traefik with HTTPS
 
-generate a self-signed certificate using the command
+The goal of this step is to configure Traefik to use HTTPS with the clients.
 
+The first step is to generate a self-signed certificate using the openssl command below.
 ```bash
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
 ```
+Once the certificate and key files are created, we placed them into a folder called `/certificate`, 
+which has to be mounted as a volume in the Traefik container.
 
-traefik.yaml
+The next step is to create a separate Traefik configuration file called `traefik.yaml` because the configuration
+we have to do cannot be directly done using labels.
 
 ```dockerfile
 providers:
+  # dynamically discovers and configures routes based on Docker containers and services
   docker:
     endpoint: "unix:///var/run/docker.sock"
 
 ## Static configuration
+# Define http and https entrypoints and their corresponding addresses 
 entryPoints:
   http:
     address: ":80"
@@ -281,80 +271,52 @@ entryPoints:
     address: ":443"
 
 tls:
+  # TLS configuration for HTTPS
   certificates:
     - certFile: /etc/traefik/certificates/cert.pem
       keyFile: /etc/traefik/certificates/key.pem
 
 api:
+  # enable Traefik dashboard
   dashboard: true
+  # allow insecure connections 
   insecure: true
 
 ```
-
-docker-compose.yml
-
+The `reverse-proxy` service in the docker-compose file also had to ba updated to mount `traefik.yaml`, the certificate,
+the key and to expose the port 443 of the container to the port 443 of the host for the https connection. You can see
+these changes below. 
 ```dockerfile
-services:
-
-  reverse-proxy:
-    image: traefik:v2.10
-    volumes:
-      # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Mounting the certificate and the key
-      - ./certificate:/etc/traefik/certificates
-      ## Mouting the treafik configuration file
-      - ./traefik.yaml:/etc/traefik/traefik.yaml
-    ports:
-      # the http port
-      - "8000:80"
-      # the https port
-      - "443:443"
-      # Traefik dashboard
-      - "8080:8080"
-
-  web:
-    # When a build subsection is present for a service, Compose ignores the image attribute for the corresponding
-    # service, as Compose can build an image from source
-    build:
-      # context specifies where to find the necessary files to build the image
-      context: nginx
-      # dockerfile specifies the name of the Dockerfile that contains the steps to build the image within
-      # the defined context
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 2
-    labels:
-        - "traefik.http.services.web.loadbalancer.server.port=80"
-        - "traefik.http.routers.secureweb.tls=true"
-        - "traefik.http.routers.secureweb.rule=Host(`localhost`) && !PathPrefix(`/api`)"
-        - "traefik.http.routers.secureweb.entrypoints=https"
-        - "traefik.http.routers.web.rule=Host(`localhost`) && !PathPrefix(`/api`)"
-        - "traefik.http.routers.web.entrypoints=http"
-
-  api:
-    build:
-      context: api
-      dockerfile: Dockerfile
-    deploy:
-      replicas: 2
-    labels:
-        - "traefik.http.services.api.loadbalancer.server.port=7000"
-        - "traefik.http.routers.secureapi.tls=true"
-        - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.api.entrypoints=http"
-        - "traefik.http.routers.secureapi.rule=Host(`localhost`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.secureapi.entrypoints=https"
-        - "traefik.http.services.api.loadBalancer.sticky.cookie=true"
-        - "traefik.http.services.api.loadBalancer.sticky.cookie.name=api-cookie"
-
+ volumes:
+   # Mounting the certificate and the key
+   - ./certificate:/etc/traefik/certificates
+   ## Mouting the treafik configuration file
+   - ./traefik.yaml:/etc/traefik/traefik.yaml
+ ports:
+   # the https port
+   - "443:443"
 ```
 
-portnair chez rafou:
-admin
-pourquoicamarchepaschezeva
+Lastly, we also had to update the web and api services in the docker-compose file to specify that the services should
+be exposed on the https entrypoint. Below is the example of the new labels of the web service.
+```dockerfile
+ labels:
+     - "traefik.http.routers.secureweb.tls=true"
+     - "traefik.http.routers.secureweb.rule=Host(`localhost`) && !PathPrefix(`/api`)"
+     - "traefik.http.routers.secureweb.entrypoints=https"
+```
+The first label ensures that TLS is enabled, the second label defines the routing route for `secureweb` and the last
+label association the `secureweb` router to the https entrypoint. We chose to keep the http entrypoint for the web service
+because we wanted to be able to access the website with http and https. That's why we have the other name `secureweb`
+for the secured version of the web service. We proceeded the same way for the api service.
 
-## Optiional Step 1 - Management UI
+We can now access the static website at `https://localhost` and the dynamic API at `https://localhost/api/songs`.
+
+## Optional Step 1 - Management UI
+As an optional step for this project, we have to implement a dashboard that allows us to monitor  and update our web 
+infrastructure dynamically. The goal being to list running container, start/stop them or even add/remove instances.
+The option chosen is to use a container called `portainer` which offers a service of a graphical interface to facilitate tasks such as container
+creation, monitoring and scaling. The configuration is as follows:
 
 ```dockerfile
 portainer:
@@ -375,6 +337,59 @@ portainer:
 volumes:
   portainer_data:
 ```
+The `volume: portainer_data` section allows us to ensure that we can keep data such as configurations or other persistent information,
+in the computer and not to be erased when we restart or updates containers.
+After running the `docker-compose` file we can go access the dashboards on these links:
+- Portainer dashboard: http://localhost:9000/ or https://localhost:9443/
+
+We are then able to stop containers or delete them. We can also create new copies/instance of the running servers. We can
+see on the pictures the running containers on our device.
+<SCREENSHOT>
 
 ## Optional Step 2 -  Integration API - static Web site
+
+The goal of this step is to change the static Web page to periodically make calls to your API server and show the 
+results in the Web page. We chose to simply a display a different song everx 4 seconds on the static website. To do so,
+we added the following code to the `index.html` file of the static website.
+```html
+<div class="api-inject"></div>
+```
+This adds an empty `div` element and assigns it to the class`api-inject`. 
+
+We then created a new javascript file called `api.js` in the `js` folder of the static website. This file contains the
+code that makes the request to the API using the fetch API and displays the result in the `div` element. You can see 
+the code below.
+
+```javascript
+// adapt the url
+const urlApi = window.location.origin + "/api/songs"
+let index = 1
+
+function fetchSongs() {
+// we fetch backend data
+    fetch(urlApi).then(response => {
+        // we convert them into json
+        response.json().then(data => {
+            let song = data[index]
+            index = (index + 1) % (Object.values(data).length + 1);
+            // create new div
+            let div = document.createElement('div')
+            // we add data to div
+            div.innerHTML = `<p>${song.singer} - ${song.title}</p>`
+            // we retrieve the div in which we want to inject the data
+            const divToInject = document.getElementsByClassName("api-inject")[0]
+            divToInject.innerHTML = ""
+            // we add the new div to the dom
+            divToInject.appendChild(div)
+        })
+    })
+}
+
+// Call fetchSongs every 4 seconds
+setInterval(fetchSongs, 4000)
+```
+
+We can now access our static website again and see the songs being displayed every 4 seconds. You can see an example
+of the result in the screenshot below.
+
 
