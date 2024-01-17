@@ -34,7 +34,13 @@ We downladed a html template to reproduce the website added the file to the ngin
 a [nginx.conf](docker/nginx/nginx.conf) file to configure the server listening on port 80 and giving the location files for the website.
 In the [dockerfile](docker/nginx/Dockerfile), we used the `COPY` command to copy the `nginx.conf` file to the container as well as the website files, 
 and finally we tell it to use the port 80.
-When all 
+When all of this is done, we can build the image and run the container with the following commands:
+
+TODO: pas sure que ce soit juste et ça marche pas chez moi
+```shell
+docker build -t dockerfile .
+docker run -d -p 8080:80 site-trololo
+```
 
 
 ```dockerfile
