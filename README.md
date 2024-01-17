@@ -41,12 +41,32 @@ TODO: pas sure que ce soit juste et ça marche pas chez moi
 docker build -t dockerfile .
 docker run -d -p 8080:80 site-trololo
 ```
+Le site devrait pouvoir être accédé à l'adresse http://localhost:8080/
 
-
+## Step 2 : Docker Compose
+Once the static website is working, we can create a docker-compose file to run the website and the other containers
+needed for the rest of the project. We created a [docker-compose.yml](docker/docker-compose.yml) file in the docker folder.
+We added the nginx service and we connected the `build`and `context` command to be able to rebuild the containers by connecting
+the Dockerfile to the service. We also linked the port 80 of the container to the port 8080 of the host. Here's
+the code we added to the first docker-compose file:
 ```dockerfile
+services:
 
-
-## Step 2
+  site-trololo:
+    # When a build subsection is present for a service, Compose ignores the image attribute for the corresponding
+    # service, as Compose can build an image from source
+    build:
+      # context specifies where to find the necessary files to build the image
+      context: nginx
+      # dockerfile specifies the name of the Dockerfile that contains the steps to build the image within
+      # the defined context
+      dockerfile: Dockerfile
+    ports:
+      - "8181:80"
+    # volumes allows you to mount a directory from the host into the container
+    volumes:
+      - ./docker/nginx/website:/var/www/html
+```
 
 ## Step 3
 
