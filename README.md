@@ -1,25 +1,33 @@
 # Labo5 HTTP Web infrastructure
 
 ## Project description
-The aim of this project, as seen in the [instructions](LABO_INSTRUCTIONS.md) document, is to establish a web infrastructure containing a
+
+The aim of this project, as seen in the [instructions](LABO_INSTRUCTIONS.md) document, is to establish a web
+infrastructure containing a
 static website, a dynamic HTTP API, and a reverse proxy. To achieve this, we use Java for API implementation,
 employing the `Javalin` framework. The web server was constructed using `nginx`, and for the reverse proxy
-functionality, we opted for `traefik`. The entire infrastructure is deployed seamlessly through the assistance of `docker`
+functionality, we opted for `traefik`. The entire infrastructure is deployed seamlessly through the assistance
+of `docker`
 and  `docker-compose`.Additionally, the capability to add or remove server instances is facilitated by the use
 of `portainer`.
 
 ## Instruction to set up the infrastructure
+
 In order to set up the infrastructure, the following steps must be followed:
+
 1. Open a terminal and navigate to the root directory of the project.
 2. If you are on Windows, make sure to open Docker Desktop.
 3. Go to the ```docker``` directory and run the command
    ```shell
     docker compose up
    ```
- or
+
+or
+
    ```shell 
     docker compose up -d --scale <instance_name>=<count>
  ```
+
 4. Docker should download all the necessary images and build the containers the first time you run it.
 5. Once the containers are up and running, you can access the :
     - Static website: http://localhost:8000/ or https://localhost:443
@@ -29,26 +37,36 @@ In order to set up the infrastructure, the following steps must be followed:
 
 ## Step 1 : Static Web site
 
-In this step, we created a dockerfil to start the nginx server. We used the official `nginx:latest` image from dockerhub.
-We downladed a html template to reproduce the website added the file to the nginx folder. Then we created a Dockerfile and 
-a [nginx.conf](docker/nginx/nginx.conf) file to configure the server listening on port 80 and giving the location files for the website.
-In the [dockerfile](docker/nginx/Dockerfile), we used the `COPY` command to copy the `nginx.conf` file to the container as well as the website files, 
+In this step, we created a dockerfil to start the nginx server. We used the official `nginx:latest` image from
+dockerhub.
+We downladed a html template to reproduce the website added the file to the nginx folder. Then we created a Dockerfile
+and
+a [nginx.conf](docker/nginx/nginx.conf) file to configure the server listening on port 80 and giving the location files
+for the website.
+In the [dockerfile](docker/nginx/Dockerfile), we used the `COPY` command to copy the `nginx.conf` file to the container
+as well as the website files,
 and finally we tell it to use the port 80.
 When all of this is done, we can build the image and run the container with the following commands:
 
 TODO: pas sure que ce soit juste et ça marche pas chez moi
+
 ```shell
 docker build -t dockerfile .
 docker run -d -p 8080:80 site-trololo
 ```
+
 Le site devrait pouvoir être accédé à l'adresse http://localhost:8080/
 
 ## Step 2 : Docker Compose
+
 Once the static website is working, we can create a docker-compose file to run the website and the other containers
-needed for the rest of the project. We created a [docker-compose.yml](docker/docker-compose.yml) file in the docker folder.
-We added the nginx service and we connected the `build`and `context` command to be able to rebuild the containers by connecting
+needed for the rest of the project. We created a [docker-compose.yml](docker/docker-compose.yml) file in the docker
+folder.
+We added the nginx service and we connected the `build`and `context` command to be able to rebuild the containers by
+connecting
 the Dockerfile to the service. We also linked the port 80 of the container to the port 8080 of the host. Here's
 the code we added to the first docker-compose file:
+
 ```dockerfile
 services:
 
@@ -68,7 +86,23 @@ services:
       - ./docker/nginx/website:/var/www/html
 ```
 
-## Step 3
+## Step 3 : HTTP API server
+
+During this phase, we developed the API using the Javalin framework in Java. With Javalin, a server was can be created,
+enabling the different endpoint routes for the API we made. The API is able to handle GET, POST, PUT and DELETE requests.
+Our basic API concept gives different songs and there author as a json format and all the songs are stored in a `ConcurrentHashMap`
+which are identified by an id (int). The different routes are:
+- GET /api/songs -> returns all the songs
+- GET /api/songs/{id}
+- POST /api/songs
+- PUT /api/songs/{id}
+- DELETE /api/songs/{id}
+
+When all the routes were implemented, we built the project with `maven` and created a [Dockerfile](docker/api/Dockerfile) to build the image of the API. 
+We used the ` eclipse-temurin:17-jdk-focal` image from dockerhub to build the API with docker. 
+We copied the jar file from the target folder to the container exposed the port 7000 and run the jar file with the command `java -jar api.jar`.
+Finally, in the docker-compose file, we added the api service by giving the `context` and `dockerfile` command to find the dockerfile/build it
+and linked the port 7000 of the container to the port 7000 of the host. Here how the docker-compose file looked like:
 
 ```dockerfile
 services:
@@ -96,7 +130,7 @@ services:
       - "7000:7000"
 ```
 
-## Step 4
+## Step 4 : Reverse proxy with Traefik
 
 We used port 8000 because port 80 was not available on our machines.
 
